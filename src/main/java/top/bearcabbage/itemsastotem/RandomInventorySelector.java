@@ -2,20 +2,21 @@ package top.bearcabbage.itemsastotem;
 
 import java.util.*;
 
+import eu.pb4.playerdata.api.PlayerDataApi;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.server.network.ServerPlayerEntity;
+
+import static top.bearcabbage.itemsastotem.ItemsAsTotem.DPData;
+import static top.bearcabbage.itemsastotem.ItemsAsTotem.activateEquip;
 
 public class RandomInventorySelector {
 
-    /**
-     * Selects a random non-empty ItemStack from the player's inventory
-     *
-     * @param inventory The PlayerInventory to select from
-     * @param mode 0 = equally random by slots, 1 = weighted by stack count
-     * @param random Random instance for selection
-     * @return A SelectionResult containing the ItemStack and slot index, or null if no non-empty stacks exist
-     */
+
     public static SelectionResult selectRandomStack(PlayerInventory inventory, int mode, Random random) {
         List<SlotStackPair> nonEmptyStacks = collectNonEmptyStacks(inventory);
 
@@ -23,20 +24,69 @@ public class RandomInventorySelector {
             return null;
         }
 
+
+        String lastDrawnItem = lastDrawing(inventory);
+
+
+        if (lastDrawnItem != null) {
+            nonEmptyStacks = nonEmptyStacks.stream()
+                    .filter(pair -> !pair.stack.getItem().toString().equals(lastDrawnItem))
+                    .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+        }
+
+
+        if (nonEmptyStacks.isEmpty()) {
+            return null;
+        }
+
+        SelectionResult result;
         if (mode == 0) {
             // Mode 0: Equally random by slots
-            return selectEquallyRandom(nonEmptyStacks, random);
+            result = selectEquallyRandom(nonEmptyStacks, random);
         } else if (mode == 1) {
             // Mode 1: Weighted by stack count
-            return selectWeightedRandom(nonEmptyStacks, random);
+            result = selectWeightedRandom(nonEmptyStacks, random);
         } else {
             throw new IllegalArgumentException("Invalid mode: " + mode + ". Use 0 for equal probability or 1 for weighted by count.");
         }
+
+        if (result != null) {
+            saveThisDrawing(inventory, result.getItemStack().getItem());
+        }
+
+        return result;
     }
 
-    /**
-     * Collects all non-empty stacks from the inventory with their slot information
-     */
+
+    public static String lastDrawing(PlayerInventory inventory) {
+        PlayerEntity player = inventory.player;
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            NbtCompound component = PlayerDataApi.getCustomDataFor(serverPlayer, DPData);
+            if (component != null && component.contains("LastDrawnItem")) {
+                return component.getString("LastDrawnItem").get();
+            }
+        }
+        return null;
+    }
+
+
+    public static void saveThisDrawing(PlayerInventory inventory, Item item) {
+        PlayerEntity player = inventory.player;
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            NbtCompound component = PlayerDataApi.getCustomDataFor(serverPlayer, DPData);
+            if (component != null) {
+                component.putString("LastDrawnItem", String.valueOf(item.toString()));
+                PlayerDataApi.setCustomDataFor(serverPlayer, DPData, component);
+            }
+            else {
+                NbtCompound newComponent = new NbtCompound();
+                newComponent.putString("LastDrawnItem", String.valueOf(item.toString()));
+                PlayerDataApi.setCustomDataFor(serverPlayer, DPData, newComponent);
+            }
+        }
+    }
+
+
     private static List<SlotStackPair> collectNonEmptyStacks(PlayerInventory inventory) {
         List<SlotStackPair> nonEmptyStacks = new ArrayList<>();
 
@@ -50,7 +100,7 @@ public class RandomInventorySelector {
 
         // Collect from equipment slots
         // Using the EQUIPMENT_SLOTS mapping from PlayerInventory
-        for (Map.Entry<Integer, EquipmentSlot> entry : PlayerInventory.EQUIPMENT_SLOTS.entrySet()) {
+        if(activateEquip) for (Map.Entry<Integer, EquipmentSlot> entry : PlayerInventory.EQUIPMENT_SLOTS.entrySet()) {
             int slotIndex = entry.getKey();
             EquipmentSlot equipmentSlot = entry.getValue();
             ItemStack stack = inventory.getStack(slotIndex);
@@ -63,18 +113,14 @@ public class RandomInventorySelector {
         return nonEmptyStacks;
     }
 
-    /**
-     * Selects randomly with equal probability for each slot
-     */
+
     private static SelectionResult selectEquallyRandom(List<SlotStackPair> nonEmptyStacks, Random random) {
         int randomIndex = random.nextInt(nonEmptyStacks.size());
         SlotStackPair selected = nonEmptyStacks.get(randomIndex);
         return new SelectionResult(selected.stack, selected.slotIndex, selected.slotType);
     }
 
-    /**
-     * Selects randomly weighted by stack count
-     */
+
     private static SelectionResult selectWeightedRandom(List<SlotStackPair> nonEmptyStacks, Random random) {
         // Calculate total weight (sum of all stack counts)
         int totalWeight = nonEmptyStacks.stream()
@@ -98,9 +144,7 @@ public class RandomInventorySelector {
         return new SelectionResult(lastPair.stack, lastPair.slotIndex, lastPair.slotType);
     }
 
-    /**
-     * Maps EquipmentSlot to SlotType for better categorization
-     */
+
     private static SlotType getSlotTypeFromEquipmentSlot(EquipmentSlot equipmentSlot) {
         switch (equipmentSlot) {
             case OFFHAND:
@@ -119,9 +163,7 @@ public class RandomInventorySelector {
         }
     }
 
-    /**
-     * Helper class to store slot information with the stack
-     */
+
     private static class SlotStackPair {
         final int slotIndex;
         final ItemStack stack;
@@ -134,9 +176,7 @@ public class RandomInventorySelector {
         }
     }
 
-    /**
-     * Enum to categorize different types of slots
-     */
+
     public enum SlotType {
         MAIN,      // Main inventory slots (0-35)
         OFFHAND,   // Offhand slot (40)
@@ -146,16 +186,12 @@ public class RandomInventorySelector {
         EQUIPMENT  // Other equipment slots
     }
 
-    /**
-     * Convenience method with default Random instance
-     */
+
     public static SelectionResult selectRandomStack(PlayerInventory inventory, int mode) {
         return selectRandomStack(inventory, mode, new Random());
     }
 
-    /**
-     * Result class containing the selected ItemStack and its slot information
-     */
+
     public static class SelectionResult {
         private final ItemStack itemStack;
         private final int slotIndex;
@@ -167,23 +203,17 @@ public class RandomInventorySelector {
             this.slotType = slotType;
         }
 
-        /**
-         * @return The selected ItemStack (original reference, not a copy)
-         */
+
         public ItemStack getItemStack() {
             return itemStack;
         }
 
-        /**
-         * @return The original slot index where this stack was found
-         */
+
         public int getSlotIndex() {
             return slotIndex;
         }
 
-        /**
-         * @return The type of slot where this stack was found
-         */
+
         public SlotType getSlotType() {
             return slotType;
         }

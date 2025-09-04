@@ -10,11 +10,16 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import eu.pb4.playerdata.api.PlayerDataApi;
+import eu.pb4.playerdata.api.storage.NbtDataStorage;
 import net.fabricmc.api.ModInitializer;
 
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.mixin.object.builder.DefaultAttributeRegistryMixin;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.attribute.DefaultAttributeRegistry;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -44,24 +49,32 @@ public class ItemsAsTotem implements ModInitializer {
 	// That way, it's clear which mod wrote info, warnings, and errors.
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	public static int randomMode = 1;
+	public static boolean activateEquip = false;
+
+	public static final NbtDataStorage DPData = new NbtDataStorage("Death_Protector_History");
 	private static final IConfig config = new IConfig(FabricLoader.getInstance().getConfigDir().resolve(MOD_ID+".json"));
 
 
 	@Override
 	public void onInitialize() {
+		PlayerDataApi.register(DPData);
 		load();
 		PayloadTypeRegistry.playS2C().register(DeathProtectorPayload.ID, DeathProtectorPayload.CODEC);
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment)->{
 			dispatcher.register(LiteralArgumentBuilder.<ServerCommandSource>literal("totem")
 				.then(argument("mode", StringArgumentType.string())
 					.requires(source -> source.hasPermissionLevel(2))
-					.suggests(ListSuggestion.of(()->java.util.List.of("inventory","unfold")))
+					.suggests(ListSuggestion.of(()->java.util.List.of("fold","unfold", "equip_on", "equip_off")))
 					.executes(context -> {
 						String modeStr = StringArgumentType.getString(context, "mode");
-						if (modeStr.equals("inventory")) {
+						if (modeStr.equals("fold")) {
 							randomMode = 0;
 						} else if (modeStr.equals("unfold")) {
 							randomMode = 1;
+						} else if (modeStr.equals("equip_on")) {
+							activateEquip = true;
+						} else if (modeStr.equals("equip_off")) {
+							activateEquip = false;
 						} else {
 							context.getSource().sendError(Text.literal("不是有效的随机方式"));
 							return 0;
@@ -72,10 +85,12 @@ public class ItemsAsTotem implements ModInitializer {
 				)
 			);
 		});
+
 	}
 
 	public static void save(){
 		config.set("RandomMode", randomMode);
+		config.set("ActivateEquip", activateEquip);
 		config.save();
 	}
 
@@ -84,7 +99,8 @@ public class ItemsAsTotem implements ModInitializer {
 		if (randomMode != 0 && randomMode != 1){
 			randomMode = 1;
 		}
-		LOGGER.info("ItemsAsTotem loaded with RandomMode: " + (randomMode==0?"inventory":"unfold"));
+		activateEquip = config.getOrDefault("ActivateEquip", false);
+		LOGGER.info("ItemsAsTotem loaded config: RandomMode="+randomMode+", ActivateEquip="+activateEquip);
 	}
 
 	public static final class ListSuggestion {
