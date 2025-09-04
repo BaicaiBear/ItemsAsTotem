@@ -1,0 +1,15 @@
+{
+	"required": true,
+	"package": "top.bearcabbage.itemsastotem.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"DataComponentTypesMixin",
+		"LivingEntityMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

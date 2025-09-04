@@ -1,0 +1,39 @@
+{
+	"schemaVersion": 1,
+	"id": "items-as-totem",
+	"version": "${version}",
+	"name": "Items As Totem",
+	"description": "Make all of your inventory items randomly work as a totem of undying!",
+	"authors": [
+		"BaicaiBear"
+	],
+	"contact": {
+		"homepage": "https://github.com/BaicaiBear",
+		"sources": "https://github.com/BaicaiBear/ItemsAsTotem"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/items-as-totem/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"top.bearcabbage.itemsastotem.ItemsAsTotem"
+		],
+		"client": [
+			"top.bearcabbage.itemsastotem.ItemsAsTotemClient"
+		]
+	},
+	"mixins": [
+		"items-as-totem.mixins.json",
+		{
+			"config": "items-as-totem.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.17.2",
+		"minecraft": "~1.21.8",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {}
+}
