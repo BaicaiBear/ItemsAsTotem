@@ -50,6 +50,7 @@ public class ItemsAsTotem implements ModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	public static int randomMode = 1;
 	public static boolean activateEquip = false;
+	public static boolean thresholdDisappear = true;
 
 	public static final NbtDataStorage DPData = new NbtDataStorage("Death_Protector_History");
 	private static final IConfig config = new IConfig(FabricLoader.getInstance().getConfigDir().resolve(MOD_ID+".json"));
@@ -64,19 +65,29 @@ public class ItemsAsTotem implements ModInitializer {
 			dispatcher.register(LiteralArgumentBuilder.<ServerCommandSource>literal("totem")
 				.then(argument("mode", StringArgumentType.string())
 					.requires(source -> source.hasPermissionLevel(2))
-					.suggests(ListSuggestion.of(()->java.util.List.of("fold","unfold", "equip_on", "equip_off")))
+					.suggests(ListSuggestion.of(()->java.util.List.of("fold","unfold", "equip_on", "equip_off", "threshold_on", "threshold_off")))
 					.executes(context -> {
 						String modeStr = StringArgumentType.getString(context, "mode");
 						if (modeStr.equals("fold")) {
 							randomMode = 0;
+							context.getSource().sendFeedback(()->Text.literal("[IAT]启用按物品栏等权重随机模式"), true);
 						} else if (modeStr.equals("unfold")) {
 							randomMode = 1;
+							context.getSource().sendFeedback(()->Text.literal("[IAT]启用按物品堆叠数权重随机模式"), true);
 						} else if (modeStr.equals("equip_on")) {
 							activateEquip = true;
+							context.getSource().sendFeedback(()->Text.literal("[IAT]允许装备栏物品参与免死保护抽取"), true);
 						} else if (modeStr.equals("equip_off")) {
 							activateEquip = false;
+							context.getSource().sendFeedback(()->Text.literal("[IAT]禁止装备栏物品参与免死保护抽取"), true);
+						} else if (modeStr.equals("threshold_on")) {
+							thresholdDisappear = true;
+							context.getSource().sendFeedback(()->Text.literal("[IAT]启用可堆叠物品消失随机数量"), true);
+						} else if (modeStr.equals("threshold_off")) {
+							thresholdDisappear = false;
+							context.getSource().sendFeedback(()->Text.literal("[IAT]禁用可堆叠物品消失随机数量"), true);
 						} else {
-							context.getSource().sendError(Text.literal("不是有效的随机方式"));
+							context.getSource().sendError(Text.literal("[IAT]参数无效"));
 							return 0;
 						}
 						save();
@@ -91,6 +102,7 @@ public class ItemsAsTotem implements ModInitializer {
 	public static void save(){
 		config.set("RandomMode", randomMode);
 		config.set("ActivateEquip", activateEquip);
+		config.set("ThresholdDisappear", thresholdDisappear);
 		config.save();
 	}
 
@@ -100,7 +112,8 @@ public class ItemsAsTotem implements ModInitializer {
 			randomMode = 1;
 		}
 		activateEquip = config.getOrDefault("ActivateEquip", false);
-		LOGGER.info("ItemsAsTotem loaded config: RandomMode="+randomMode+", ActivateEquip="+activateEquip);
+		thresholdDisappear = config.getOrDefault("ThresholdDisappear", true);
+		LOGGER.info("ItemsAsTotem loaded config: RandomMode="+randomMode+", ActivateEquip="+activateEquip+", ThresholdDisappear="+thresholdDisappear);
 	}
 
 	public static final class ListSuggestion {

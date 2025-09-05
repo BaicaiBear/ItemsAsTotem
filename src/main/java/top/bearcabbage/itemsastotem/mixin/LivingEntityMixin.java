@@ -7,13 +7,10 @@ import net.minecraft.component.type.DeathProtectionComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.attribute.EntityAttribute;
-import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.DamageTypeTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.stat.Stats;
@@ -29,7 +26,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import top.bearcabbage.itemsastotem.DeathProtectorPayload;
 import top.bearcabbage.itemsastotem.RandomInventorySelector;
 
+import java.util.Random;
+
 import static top.bearcabbage.itemsastotem.ItemsAsTotem.randomMode;
+import static top.bearcabbage.itemsastotem.ItemsAsTotem.thresholdDisappear;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin extends Entity {
@@ -82,7 +82,17 @@ public abstract class LivingEntityMixin extends Entity {
                     if (deathProtectionComponent != null) {
                         itemStack = itemStack2.copy();
                         index = result.getSlotIndex();
-                        itemStack2.decrement(1);
+                        if (itemStack2.getCount() > 1 && thresholdDisappear) {
+                            Random random = new Random();
+                            int randomThreshold = random.nextInt(64) + 1;
+                            if (itemStack2.getCount() < randomThreshold) {
+                                itemStack2.setCount(0);
+                            } else {
+                                itemStack2.decrement(randomThreshold);
+                            }
+                        } else {
+                            itemStack2.decrement(1);
+                        }
                     }
                 }
 
