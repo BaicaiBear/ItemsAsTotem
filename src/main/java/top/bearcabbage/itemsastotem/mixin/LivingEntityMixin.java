@@ -101,6 +101,33 @@ public abstract class LivingEntityMixin extends Entity {
 
                 cir.setReturnValue(deathProtectionComponent != null);
             }
+        } else {
+            if (source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+                cir.setReturnValue(false);
+            } else {
+                ItemStack itemStack = null;
+                DeathProtectionComponent deathProtectionComponent = null;
+                Hand[] var5 = Hand.values();
+                int var6 = var5.length;
+
+                for(int var7 = 0; var7 < var6; ++var7) {
+                    Hand hand = var5[var7];
+                    ItemStack itemStack2 = this.getStackInHand(hand);
+                    deathProtectionComponent = (DeathProtectionComponent)itemStack2.get(DataComponentTypes.DEATH_PROTECTION);
+                    if (deathProtectionComponent != null && deathProtectionComponent.equals(DeathProtectionComponent.TOTEM_OF_UNDYING)) {
+                        itemStack = itemStack2.copy();
+                        itemStack2.decrement(1);
+                        break;
+                    }
+                }
+
+                if (itemStack != null) {
+                    this.setHealth(1.0F);
+                    deathProtectionComponent.applyDeathEffects(itemStack, (LivingEntity) (Object)this);
+                    this.getWorld().sendEntityStatus(this, (byte)35);
+                }
+                cir.setReturnValue(deathProtectionComponent != null && deathProtectionComponent.equals(DeathProtectionComponent.TOTEM_OF_UNDYING));
+            }
         }
     }
 
